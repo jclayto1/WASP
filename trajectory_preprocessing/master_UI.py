@@ -36,6 +36,7 @@ if args.filetype == "pdb" and args.xcol is None:
 	parser.error("The option pdb requires --xcol to be specified")
 
 #main variable initialization
+##JAC: I would take the oportunity here to do some parameter checking, i.e. startframe is non-negative.
 incrd = args.incrd
 startframe = args.startframe
 endframe = args.endframe
@@ -49,6 +50,8 @@ prmtop = args.prmtop
 #Reads file path to the writhe code from the configuration file and strips trailing whitespace
 f = open("config.txt")
 config_info = f.readlines()
+##JAC: If the user deletes your comments in the config file, these lines will either a) break, if there are only two lines in the file or b) read blank lines, leading to a path (or both paths) to be the root directory ('/').
+##One way around this is to read each line, skip comments, and stop once both paths have been read.
 writheCodeFilePath = config_info[1].rstrip()
 workingDirectory = config_info[3].rstrip()
 #Input formatting check
@@ -67,10 +70,13 @@ if args.filetype == ("pdb"):
 	nframes = len(x)/(2*nbp)
 
 if args.filetype == ("mdcrd"):
-	
-	#runs CPPTRAJ script that strips all non-C1' atoms from the Amber trajectory 
+
+	#runs CPPTRAJ script that strips all non-C1' atoms from the Amber trajectory
+##JAC: there isn't a reason to convert all of these into strings (some already are type string); you could us %d for int. Also I'm pretty sure the default value for argparse is string, so there's no use in calling str(prmtop).
+##Alternatively, you can create a cpptraj command in a string, then feed that command to cpptraj; this eliminates the need for your amber_mdcrd_strip.sh command, and the make script that makes the shell script executable (which may or may not work, depending on if a super user is needed to make a file executable). If you need help feeding commands through the command line, let me or Dustin know (Dustin almost exclusively pipes commands through a bash script nowadays).
+##If you deside against feeding a string into the cpptraj command, you can also do 'bash %samber_mdcrd_strip.sh ...'; this will eliminate the setup of running chmod
 	subprocess.call(shlex.split("%samber_mdcrd_strip.sh %s %s %s %s %s %s"%(str(workingDirectory), str(prmtop), str(incrd), str(nbp), str(startframe), str(endframe), str(stride))))
-	
+
 #calculates number of frames in stripped trajectory if the total number of frames is divisible by the stride
 #i.e. 1000 frames, stride of 10
 #the +1 is to include the boundary frame into the count since cpptraj includes both the start and end frames in the trajectory
@@ -83,13 +89,14 @@ if args.filetype == ("mdcrd"):
 #calculates number of frames in stripped trajectory if the total number of frames is not divisible by the stride (double check this....)
 #the  +1 at the end of the line is to include the frame that cpptraj adds to the trajectory if a full stride cannot be completed
 #i.e trajin trajectory.mdcrd 1 102 10 reads 11 frames not 10
-
+##JAC: One way you can simplify this is to calculate nframes, then add one if the above if condition is false. Your comments explaining wouldn't match very well in that case, so this isn't a strong suggestion.
 	else:
         	nframes = (endframe - startframe+1)/stride + 1
 
 	x,y,z = amber_read("stripped_C1.mdcrd", nbp, nframes)
 
 #convert coordinates to float
+##JAC: consider doing this in your read functions? Would duplicate code, but makes more sense for the read functions to return arrays of floats
 x = x.astype(float)
 y = y.astype(float)
 z = z.astype(float)
@@ -103,6 +110,10 @@ wrline_axis = axis_generate(nbp, nframes, midpt_ri4, twist, deleteatoms)
 f = open("%s"%writheCodeFilePath + "writhe_input_axis","w")
 
 #writes axis coordinates to file for use with the writhe scripts
+##JAC: in python, for can be seen as more of a foreach (though it does work with generators). I would consider replacing this with
+## for frame in wrline_axis:
+##	for pair in frame:
+##		f.write(...)%(pair[0],pair[1],pair[2])
 for i in range (nframes):
        for j in range (nbp-2*deleteatoms):
                f.write("%6f    %6f    %6f\n" % (wrline_axis[i][j][0],wrline_axis[i][j][1],wrline_axis[i][j][2]))
@@ -111,6 +122,8 @@ for i in range (nframes):
 f.close()
 
 #writes axis curve and atoms read from original trajectory file out to xyz files for debugging
+
+##JAC: note that here you can just do if args.debug; if it's true, it'll execute. No need to compare it to True ;)
 if args.debug == (True):
 
 	f = open ("debug.xyz","w")
@@ -118,6 +131,7 @@ if args.debug == (True):
 		f.write(str(nbp*2))
 		f.write("\n \n")
 		for j in range (nbp*2):
+##JAC: curious, any reason why to use string.format here and not above?
 			f.write("{0}\t{1}\t{2}\t{3}\n".format('H',x[nbp*i+j],y[nbp*i+j],z[nbp*i+j]))
 	f.close()
 
@@ -125,9 +139,9 @@ if args.debug == (True):
 	for i in range (nframes):
 		f.write(str(nbp-2*deleteatoms))
 		f.write("\n \n")
-		
+
 		for j in range (nbp-2*deleteatoms):
-	
+
 			f.write("{0}\t{1}\t{2}\t{3}\n".format('H',wrline_axis[i][j][0],wrline_axis[i][j][1],wrline_axis[i][j][2]))
 	f.close()
 
@@ -137,7 +151,7 @@ if args.polarwrithe == (True):
 	#checks if smoothing routine is requested
 	if args.smooth == (True):
 		subprocess.call(shlex.split("%spolarWritheGenTrajectory %swrithe_input_axis %s %s %s %s smooth"%(str(writheCodeFilePath), str(writheCodeFilePath),str(nframes), str(nbp-2*deleteatoms),  str(1), str(outfile))))
-	
+
 	else:
 		subprocess.call(shlex.split("%spolarWritheGenTrajectory %swrithe_input_axis %s %s %s %s"%(str(writheCodeFilePath), str(writheCodeFilePath),str(nframes), str(nbp-2*deleteatoms), str(1), str(outfile))))
 

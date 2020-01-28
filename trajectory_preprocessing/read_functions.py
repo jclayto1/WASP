@@ -39,10 +39,11 @@ def read_oxDNA(incrd, startframe, endframe, nbp, stride):
 		xframes_stride = np.array([])
 		yframes_stride = np.array([])
 		zframes_stride = np.array([])
+##JAC: range supports striding; the parameters can be range(start,stop,stride) as well as range(stop). This way you'll remove a bit of overhead, but moreover your code will be a bit more readable (i.e. no i%stride==0)
 		for i in range (frame_end - frame_start):
 
 			#add coordinates to output file if they are in a frame that is included in the stride i.e. if stride = 2 and i = 4, include coordinates
-		       
+
 			#if stride = 2 and i = 5, don't include coordinates
 			if i%stride == 0:
 				xframes_stride = np.append(xframes_stride,xframes[i*nbp2:i*nbp2+nbp2])
@@ -93,6 +94,7 @@ def read_pdb(incrd, startframe, endframe, nbp, stride, xcol):
                 xframes_stride = np.array([])
                 yframes_stride = np.array([])
                 zframes_stride = np.array([])
+##JAC: range supports striding; the parameters can be range(start,stop,stride) as well as range(stop). This way you'll remove a bit of overhead, but moreover your code will be a bit more readable (i.e. no i%stride==0)
                 for i in range (frame_end - frame_start):
 
                         #add coordinates to output file if they are in a frame that is included in the stride i.e. if stride = 2 and i = 4, include coordinates
@@ -116,7 +118,7 @@ def amber_read(incrd, nbp, nframes):
         #ignore first line containing "Cpptraj Generated Trajectory" header
         f.readline()
 
-        #list of all coordinates before distinguishing between x,y,z    
+        #list of all coordinates before distinguishing between x,y,z
         allcoords=[]
 
         #extracting coordinates from mdcrd format
@@ -141,7 +143,3 @@ def amber_read(incrd, nbp, nframes):
         f.close()
 
         return xcrd, ycrd, zcrd
-
-
-
-
